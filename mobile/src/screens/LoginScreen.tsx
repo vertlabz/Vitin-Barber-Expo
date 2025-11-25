@@ -8,18 +8,15 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { api } from '../services/api';
-import type { User } from '../../App';
+import { useAuth } from '../hooks/useAuth';
 
 type LoginScreenProps = {
-  onLoginSuccess: (user: User) => void;
   onGoToRegister: () => void;
 };
 
-export function LoginScreen({
-  onLoginSuccess,
-  onGoToRegister,
-}: LoginScreenProps) {
+export function LoginScreen({ onGoToRegister }: LoginScreenProps) {
+  const { signIn } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -33,14 +30,8 @@ export function LoginScreen({
     try {
       setSubmitting(true);
 
-      const response = await api.post('/api/auth/login', {
-        email,
-        password,
-      });
-
-      const { user } = response.data;
-
-      onLoginSuccess(user);
+      await signIn({ email, password });
+      // Se deu certo, o contexto atualiza e o AppInner muda a tela pra dashboard
     } catch (error: any) {
       console.log('Erro ao entrar:', error?.response?.data || error);
       Alert.alert(

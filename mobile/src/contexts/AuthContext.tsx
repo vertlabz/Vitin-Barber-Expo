@@ -3,7 +3,7 @@ import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, setApiToken } from '../services/api';
 
-type User = {
+export type AuthUser = {
   id: string;
   name: string;
   email: string;
@@ -15,9 +15,9 @@ type SignInCredentials = {
 };
 
 type AuthContextData = {
-  user: User | null;
-  loading: boolean;
+  user: AuthUser | null;
   isAuthenticated: boolean;
+  loading: boolean;
   signIn: (credentials: SignInCredentials) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -29,7 +29,7 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,15 +57,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
   async function signIn({ email, password }: SignInCredentials) {
     const response = await api.post('/api/auth/login', { email, password });
 
-    const { token, user } = response.data;
+    const data = response.data;
+    console.log('Login response data:', data);
 
-    await AsyncStorage.multiSet([
-      ['@barber:token', token],
-      ['@barber:user', JSON.stringify(user)],
-    ]);
+    // tenta achar o token em campos comuns
+    const token: string | null =
+      data.token ??
+      data.accessToken ??
+      data.jwt ??
+      null;
 
-    setApiToken(token);
-    setUser(user);
+    // tenta achar o user em data.user, ou monta a partir de campos soltos
+    const user: AuthUser =
+      data.user ?? {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+      };
+
+    const storagePairs: [string, string][] = [];
+
+    if (token) {
+      storagePairs.push(['@barber:token', token]);
+      setApiToken(token);
+    } else {
+      console.warn('⚠️ Nenhum token encontrado na resposta de login.');
+      setApiToken(null);
+    }
+
+    if (user) {
+      storagePairs.push(['@barber:user', JSON.stringify(user)]);
+      setUser(user);
+    }
+
+    if (storagePairs.length > 0) {
+      await AsyncStorage.multiSet(storagePairs);
+    }
   }
 
   async function signOut() {
@@ -78,8 +105,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     <AuthContext.Provider
       value={{
         user,
-        loading,
         isAuthenticated: !!user,
+        loading,
         signIn,
         signOut,
       }}

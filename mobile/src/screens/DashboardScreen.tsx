@@ -1,18 +1,19 @@
 // src/screens/DashboardScreen.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import type { User } from '../../App';
+import { useAuth } from '../hooks/useAuth';
 
 type DashboardScreenProps = {
-  user: User;
   onLogout: () => void;
 };
 
-export function DashboardScreen({ user, onLogout }: DashboardScreenProps) {
+export function DashboardScreen({ onLogout }: DashboardScreenProps) {
+  const { user } = useAuth();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Dashboard</Text>
-      <Text style={styles.label}>Olá, {user.name}</Text>
+      <Text style={styles.label}>Olá, {user?.name ?? 'usuário'}</Text>
 
       <TouchableOpacity style={styles.button} onPress={onLogout}>
         <Text style={styles.buttonText}>Sair</Text>

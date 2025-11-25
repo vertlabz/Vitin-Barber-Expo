@@ -1,30 +1,40 @@
 // App.tsx
-import React, { useState } from 'react';
-import { View, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StatusBar, ActivityIndicator } from 'react-native';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
-
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-};
+import { AuthProvider } from './src/contexts/AuthContext';
+import { useAuth } from './src/hooks/useAuth';
 
 type Screen = 'login' | 'register' | 'dashboard';
 
-export default function App() {
+function AppInner() {
+  const { isAuthenticated, loading, signOut } = useAuth();
   const [screen, setScreen] = useState<Screen>('login');
-  const [user, setUser] = useState<User | null>(null);
 
-  function handleLoginSuccess(loggedUser: User) {
-    setUser(loggedUser);
-    setScreen('dashboard');
-  }
+  // Quando o usuário já estiver autenticado ao abrir o app, vai direto pra Dashboard
+  useEffect(() => {
+    if (!loading) {
+      if (isAuthenticated) {
+        setScreen('dashboard');
+      } else {
+        setScreen('login');
+      }
+    }
+  }, [isAuthenticated, loading]);
 
   function handleLogout() {
-    setUser(null);
+    signOut();
     setScreen('login');
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator />
+      </View>
+    );
   }
 
   return (
@@ -32,19 +42,22 @@ export default function App() {
       <StatusBar barStyle="dark-content" />
 
       {screen === 'login' && (
-        <LoginScreen
-          onLoginSuccess={handleLoginSuccess}
-          onGoToRegister={() => setScreen('register')}
-        />
+        <LoginScreen onGoToRegister={() => setScreen('register')} />
       )}
 
       {screen === 'register' && (
         <RegisterScreen onGoBack={() => setScreen('login')} />
       )}
 
-      {screen === 'dashboard' && user && (
-        <DashboardScreen user={user} onLogout={handleLogout} />
-      )}
+      {screen === 'dashboard' && <DashboardScreen onLogout={handleLogout} />}
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppInner />
+    </AuthProvider>
   );
 }
