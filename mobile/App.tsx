@@ -4,23 +4,20 @@ import { View, StatusBar, ActivityIndicator } from 'react-native';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
+import { BookingScreen } from './src/screens/BookingScreen';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { useAuth } from './src/hooks/useAuth';
 
-type Screen = 'login' | 'register' | 'dashboard';
+type Screen = 'login' | 'register' | 'dashboard' | 'booking';
 
 function AppInner() {
   const { isAuthenticated, loading, signOut } = useAuth();
   const [screen, setScreen] = useState<Screen>('login');
 
-  // Quando o usuário já estiver autenticado ao abrir o app, vai direto pra Dashboard
   useEffect(() => {
     if (!loading) {
-      if (isAuthenticated) {
-        setScreen('dashboard');
-      } else {
-        setScreen('login');
-      }
+      if (isAuthenticated) setScreen('dashboard');
+      else setScreen('login');
     }
   }, [isAuthenticated, loading]);
 
@@ -49,7 +46,14 @@ function AppInner() {
         <RegisterScreen onGoBack={() => setScreen('login')} />
       )}
 
-      {screen === 'dashboard' && <DashboardScreen onLogout={handleLogout} />}
+      {screen === 'dashboard' && (
+        <DashboardScreen
+          onLogout={handleLogout}
+          onSchedule={() => setScreen('booking')}
+        />
+      )}
+
+      {screen === 'booking' && <BookingScreen onBack={() => setScreen('dashboard')} />}
     </View>
   );
 }
