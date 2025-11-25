@@ -9,32 +9,44 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import { Calendar, DateObject } from 'react-native-calendars';
 import { api } from '../services/api';
+import type { AppService } from '../../App';
 
 type BookingScreenProps = {
   onBack: () => void;
+  service: AppService;
 };
 
-type Service = {
-  id: string;
-  name: string;
-  duration: number;
-  price?: number;
+type ProviderAvailability = {
+  weekday: number; // 0 = domingo ... 6 = sábado
 };
 
 const DEFAULT_PROVIDER_ID = '2b4bb72b-c961-4f05-beb8-013dd39a5a07';
+const MAX_BOOKING_DAYS = 7;
 
-export function BookingScreen({ onBack }: BookingScreenProps) {
-  const [services, setServices] = useState<Service[]>([]);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
-    null,
+const monthNames = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+export function BookingScreen({ onBack, service }: BookingScreenProps) {
+  const [date, setDate] = useState(new Date());
+  const [selectedDateStr, setSelectedDateStr] = useState(
+    new Date().toISOString().split('T')[0],
   );
 
-  const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
+  const [availableWeekdays, setAvailableWeekdays] = useState<number[]>([]);
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -50,75 +62,82 @@ export function BookingScreen({ onBack }: BookingScreenProps) {
       const res = await api.get(`/api/providers/${providerId}`);
       const data = res.data;
 
-      console.log('Provider details:', JSON.stringify(data, null, 2));
+      console.log('Provider details (booking):', JSON.stringify(data, null, 2));
 
       const provider = data.provider ?? data;
 
-      const servicesFromApi: Service[] =
-        provider.services ?? provider.providerServices ?? [];
-
-      setServices(servicesFromApi);
-
-      if (servicesFromApi.length > 0) {
-        setSelectedServiceId(servicesFromApi[0].id);
-      }
+      const avails: ProviderAvailability[] =
+        provider.providerAvailabilities ?? [];
+      const weekdays = avails.map((a) => a.weekday);
+      setAvailableWeekdays(weekdays);
     } catch (error: any) {
       console.log(
-        'Erro carregando serviços:',
+        'Erro carregando provider:',
         error?.response?.data || error,
       );
-      Alert.alert('Erro', 'Não foi possível carregar os serviços.');
+      Alert.alert('Erro', 'Não foi possível carregar informações do barbeiro.');
     }
   }
 
-  async function loadSlots() {
-    if (!selectedServiceId) {
-      Alert.alert('Atenção', 'Selecione um serviço.');
-      return;
+  function isDayEnabled(dateString: string) {
+    const d = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const diffMs = d.getTime() - today.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0 || diffDays > MAX_BOOKING_DAYS) {
+      return false;
     }
 
+    const weekday = d.getDay(); // 0..6
+    return availableWeekdays.includes(weekday);
+  }
+
+  function handleSelectDay(dateString: string) {
+    if (!isDayEnabled(dateString)) return;
+
+    const newDate = new Date(dateString + 'T00:00:00');
+    setDate(newDate);
+    setSelectedDateStr(dateString);
+    setSlots([]);
+    setSelectedSlot(null);
+    setHasTriedSlots(false);
+  }
+
+  async function loadSlots() {
     try {
       setLoadingSlots(true);
       setSelectedSlot(null);
       setHasTriedSlots(true);
 
-      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      const formattedDate = selectedDateStr;
 
       const res = await api.get('/api/appointments/slots', {
         params: {
           providerId: DEFAULT_PROVIDER_ID,
           date: formattedDate,
-          serviceId: selectedServiceId,
+          serviceId: service.id,
         },
       });
 
-      console.log(
-        'Slots response:',
-        JSON.stringify(res.data, null, 2),
-      );
+      console.log('Slots response:', JSON.stringify(res.data, null, 2));
 
       let slotsFromApi: string[] = [];
 
       if (Array.isArray(res.data)) {
-        // caso a API retorne diretamente ["2025-11-27T13:00:00Z", ...]
         slotsFromApi = res.data;
       } else if (Array.isArray(res.data.slots)) {
-        // caso a API retorne { slots: [ ... ] }
         slotsFromApi = res.data.slots;
       } else if (
         res.data.slots &&
         Array.isArray(res.data.slots.slots)
       ) {
-        // caso muito bizarro { slots: { slots: [...] } }
         slotsFromApi = res.data.slots.slots;
       }
 
       setSlots(slotsFromApi);
-
-      if (slotsFromApi.length === 0) {
-        // não é erro, só não tem horário
-        console.log('Nenhum horário disponível para esta data.');
-      }
     } catch (error: any) {
       console.log('Erro carregando slots:', error?.response?.data || error);
       Alert.alert(
@@ -132,15 +151,15 @@ export function BookingScreen({ onBack }: BookingScreenProps) {
   }
 
   async function handleSchedule() {
-    if (!selectedServiceId || !selectedSlot) {
-      Alert.alert('Erro', 'Selecione serviço e horário.');
+    if (!selectedSlot) {
+      Alert.alert('Erro', 'Selecione um horário.');
       return;
     }
 
     try {
       await api.post('/api/appointments', {
         providerId: DEFAULT_PROVIDER_ID,
-        serviceId: selectedServiceId,
+        serviceId: service.id,
         date: selectedSlot,
         notes: '',
       });
@@ -148,22 +167,25 @@ export function BookingScreen({ onBack }: BookingScreenProps) {
       Alert.alert('Sucesso', 'Agendamento confirmado ✅');
       onBack();
     } catch (error: any) {
+      const backendMessage = error?.response?.data?.message;
       console.log('Erro criando agendamento:', error?.response?.data || error);
+
+      if (
+        backendMessage &&
+        backendMessage.toLowerCase().includes('já existe')
+      ) {
+        Alert.alert(
+          'Horário indisponível',
+          'Esse horário acabou de ser ocupado. Vamos atualizar a lista.',
+        );
+        await loadSlots();
+        return;
+      }
+
       Alert.alert(
         'Erro',
-        error?.response?.data?.message ||
-          'Não foi possível criar o agendamento.',
+        backendMessage || 'Não foi possível criar o agendamento.',
       );
-    }
-  }
-
-  function handleChangeDate(_: DateTimePickerEvent, selected?: Date) {
-    setShowPicker(false);
-    if (selected) {
-      setDate(selected);
-      setSlots([]);
-      setSelectedSlot(null);
-      setHasTriedSlots(false);
     }
   }
 
@@ -190,84 +212,94 @@ export function BookingScreen({ onBack }: BookingScreenProps) {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        {/* Serviços em LISTA */}
-        <Text style={styles.sectionTitle}>Escolha o serviço</Text>
-
-        {services.length === 0 && (
-          <Text style={styles.emptyText}>
-            Nenhum serviço cadastrado para este barbeiro.
+        {/* Serviço selecionado */}
+        <View style={styles.serviceInfoCard}>
+          <Text style={styles.serviceInfoLabel}>Serviço selecionado</Text>
+          <Text style={styles.serviceInfoName}>{service.name}</Text>
+          <Text style={styles.serviceInfoMeta}>
+            {service.duration} min
+            {typeof service.price === 'number'
+              ? ` • R$ ${service.price}`
+              : ''}
           </Text>
-        )}
+        </View>
 
-        <FlatList
-          data={services}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          renderItem={({ item }) => {
-            const selected = selectedServiceId === item.id;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.serviceRow,
-                  selected && styles.serviceRowSelected,
-                ]}
-                onPress={() => {
-                  setSelectedServiceId(item.id);
-                  setSlots([]);
-                  setSelectedSlot(null);
-                  setHasTriedSlots(false);
-                }}
-              >
-                <View style={styles.serviceInfo}>
-                  <Text
-                    style={[
-                      styles.serviceName,
-                      selected && styles.serviceNameSelected,
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                  <Text style={styles.serviceMeta}>
-                    {item.duration} min
-                    {typeof item.price === 'number'
-                      ? ` • R$ ${item.price}`
-                      : ''}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.serviceSelector,
-                    selected && styles.serviceSelectorSelected,
-                  ]}
-                />
-              </TouchableOpacity>
-            );
-          }}
-        />
-
-        {/* Data */}
+        {/* Calendário customizado */}
         <Text style={styles.sectionTitle}>Escolha a data</Text>
 
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => setShowPicker(true)}
-        >
-          <Text style={styles.dateButtonText}>
-            {date.toLocaleDateString('pt-BR')}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.calendarWrapper}>
+          <Calendar
+            firstDay={1}
+            hideExtraDays
+            enableSwipeMonths
+            onDayPress={(day: DateObject) =>
+              handleSelectDay(day.dateString)
+            }
+            dayComponent={({ date: d }) => {
+              if (!d) return null;
+              const enabled = isDayEnabled(d.dateString);
+              const isSelected = d.dateString === selectedDateStr;
 
-        {showPicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default" // seguro no iOS e Android
-            onChange={handleChangeDate}
+              const bgColor = isSelected
+                ? '#22c55e'
+                : enabled
+                ? '#0f172a'
+                : 'transparent';
+
+              const borderColor = enabled ? '#1f2937' : 'transparent';
+
+              const textColor = !enabled
+                ? '#4b5563'
+                : isSelected
+                ? '#022c22'
+                : '#e5e7eb';
+
+              const inner = (
+                <View
+                  style={[
+                    styles.dayContainer,
+                    { backgroundColor: bgColor, borderColor },
+                  ]}
+                >
+                  <Text style={[styles.dayText, { color: textColor }]}>
+                    {d.day}
+                  </Text>
+                </View>
+              );
+
+              if (!enabled) {
+                return inner;
+              }
+
+              return (
+                <TouchableOpacity
+                  onPress={() => handleSelectDay(d.dateString)}
+                  activeOpacity={0.8}
+                >
+                  {inner}
+                </TouchableOpacity>
+              );
+            }}
+            renderHeader={(d) => {
+              const month = monthNames[d.getMonth()];
+              const year = d.getFullYear();
+              return (
+                <Text style={styles.calendarHeader}>
+                  {month} {year}
+                </Text>
+              );
+            }}
+            theme={{
+              backgroundColor: '#020617',
+              calendarBackground: '#020617',
+              arrowColor: '#e5e7eb',
+              monthTextColor: '#e5e7eb',
+              textSectionTitleColor: '#6b7280',
+            }}
           />
-        )}
+        </View>
 
-        {/* Buscar horários */}
+        {/* Botão carregar horários */}
         <TouchableOpacity style={styles.loadButton} onPress={loadSlots}>
           <Text style={styles.loadButtonText}>
             {loadingSlots ? 'Carregando...' : 'Ver horários disponíveis'}
@@ -307,7 +339,7 @@ export function BookingScreen({ onBack }: BookingScreenProps) {
           </>
         )}
 
-        {/* Mensagem quando não tem horário depois de tentar carregar */}
+        {/* Mensagem sem horário */}
         {hasTriedSlots && !loadingSlots && slots.length === 0 && (
           <Text style={styles.emptyText}>
             Nenhum horário disponível para essa data. Tente outro dia. 😢
@@ -363,59 +395,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f172a',
+
+  // Serviço selecionado
+  serviceInfoCard: {
+    backgroundColor: '#020617',
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#1f2937',
   },
-  serviceRowSelected: {
-    borderColor: '#22c55e',
-  },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
-    color: '#e5e7eb',
-    fontSize: 15,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  serviceNameSelected: {
-    color: '#bbf7d0',
-  },
-  serviceMeta: {
+  serviceInfoLabel: {
     color: '#9ca3af',
     fontSize: 12,
   },
-  serviceSelector: {
-    width: 18,
-    height: 18,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: '#4b5563',
+  serviceInfoName: {
+    color: '#f9fafb',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 2,
   },
-  serviceSelectorSelected: {
-    borderColor: '#22c55e',
-    backgroundColor: '#22c55e',
+  serviceInfoMeta: {
+    color: '#9ca3af',
+    fontSize: 13,
   },
-  dateButton: {
-    marginTop: 4,
-    backgroundColor: '#0f172a',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
+
+  // Calendário
+  calendarWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
     borderWidth: 1,
     borderColor: '#1f2937',
   },
-  dateButtonText: {
+  calendarHeader: {
+    textAlign: 'center',
+    paddingVertical: 8,
     color: '#e5e7eb',
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '600',
   },
+  dayContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginVertical: 4,
+    alignSelf: 'center',
+  },
+  dayText: {
+    fontSize: 14,
+  },
+
   loadButton: {
     marginTop: 10,
     backgroundColor: '#2563eb',
@@ -427,6 +460,7 @@ const styles = StyleSheet.create({
     color: '#f9fafb',
     fontWeight: '600',
   },
+
   slot: {
     marginTop: 8,
     flex: 1,

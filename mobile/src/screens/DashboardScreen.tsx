@@ -7,13 +7,16 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
+import type { AppService } from '../../App';
 
 type DashboardScreenProps = {
   onLogout: () => void;
-  onSchedule: () => void;
+  onSchedule: (service: AppService) => void;
 };
 
 type Appointment = {
@@ -32,14 +35,27 @@ type Appointment = {
   };
 };
 
+type Service = AppService;
+
+type TabKey = 'home' | 'appointments' | 'profile';
+
+const DEFAULT_PROVIDER_ID = '2b4bb72b-c961-4f05-beb8-013dd39a5a07';
+
 export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) {
   const { user } = useAuth();
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
 
+  const [services, setServices] = useState<Service[]>([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+
+  const [activeTab, setActiveTab] = useState<TabKey>('home');
+
   useEffect(() => {
     loadAppointments();
+    loadServices();
   }, []);
 
   async function loadAppointments() {
@@ -63,6 +79,28 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
       console.log('Erro carregando agendamentos:', error?.response?.data || error);
     } finally {
       setLoadingAppointments(false);
+    }
+  }
+
+  async function loadServices() {
+    try {
+      setLoadingServices(true);
+
+      const res = await api.get(`/api/providers/${DEFAULT_PROVIDER_ID}`);
+      const data = res.data;
+      const provider = data.provider ?? data;
+
+      const servicesFromApi: Service[] =
+        provider.services ?? provider.providerServices ?? [];
+
+      setServices(servicesFromApi);
+      if (!selectedService && servicesFromApi.length > 0) {
+        setSelectedService(servicesFromApi[0]);
+      }
+    } catch (error: any) {
+      console.log('Erro carregando serviços:', error?.response?.data || error);
+    } finally {
+      setLoadingServices(false);
     }
   }
 
@@ -91,54 +129,201 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
     );
   }
 
+  function renderService({ item }: { item: Service }) {
+    const selected = selectedService?.id === item.id;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.serviceCard,
+          selected && styles.serviceCardSelected,
+        ]}
+        onPress={() => setSelectedService(item)}
+        activeOpacity={0.8}
+      >
+        <View>
+          <Text
+            style={[
+              styles.serviceName,
+              selected && styles.serviceNameSelected,
+            ]}
+          >
+            {item.name}
+          </Text>
+          <Text style={styles.serviceMeta}>
+            {item.duration} min
+            {typeof item.price === 'number' ? ` • R$ ${item.price}` : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  function TabButton({
+    label,
+    tab,
+  }: {
+    label: string;
+    tab: TabKey;
+  }) {
+    const active = activeTab === tab;
+    return (
+      <TouchableOpacity
+        style={[styles.tabButton, active && styles.tabButtonActive]}
+        onPress={() => setActiveTab(tab)}
+        activeOpacity={0.8}
+      >
+        <Text
+          style={[styles.tabButtonText, active && styles.tabButtonTextActive]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  function handlePressSchedule() {
+    if (!selectedService) return;
+    onSchedule(selectedService);
+  }
+
   return (
     <View style={styles.container}>
-      {/* Header básico */}
-      <Text style={styles.greeting}>Olá 👋</Text>
-      <Text style={styles.name}>{user?.name ?? 'Cliente'}</Text>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        {/* Saudação */}
+        <Text style={styles.greeting}>Olá, {user?.name ?? 'cliente'} 👋</Text>
 
-      {/* Card principal */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>O que você quer fazer hoje?</Text>
-        <Text style={styles.cardSubtitle}>
-          Agende um horário ou veja seus próximos atendimentos.
-        </Text>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={onSchedule}>
-          <Text style={styles.primaryButtonText}>Agendar serviço</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Lista de agendamentos */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Meus agendamentos</Text>
-        <TouchableOpacity onPress={loadAppointments}>
-          <Text style={styles.sectionAction}>Atualizar</Text>
-        </TouchableOpacity>
-      </View>
-
-      {loadingAppointments ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator />
-          <Text style={styles.loadingText}>Carregando seus horários...</Text>
+        {/* Banner da barbearia */}
+        <View style={styles.bannerWrapper}>
+          <Image
+            source={{
+              uri: 'https://conteudo.solutudo.com.br/wp-content/uploads/2020/01/BARBEARIA-ARACAJU-BARBEIRO-MESTRE.png',
+            }}
+            style={styles.bannerImage}
+          />
+          <View style={styles.bannerOverlay}>
+            <Text style={styles.shopName}>VITINHO BARBER</Text>
+            <Text style={styles.shopAddress}>Centro 151, 29370-000</Text>
+            <Text style={styles.shopAddress}>Conceição do Castelo - ES</Text>
+          </View>
         </View>
-      ) : appointments.length === 0 ? (
-        <Text style={styles.emptyText}>
-          Você ainda não tem agendamentos. Que tal marcar um agora? ✂️
-        </Text>
-      ) : (
-        <FlatList
-          data={appointments}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          renderItem={renderAppointment}
-        />
-      )}
 
-      <TouchableOpacity style={styles.secondaryButton} onPress={onLogout}>
-        <Text style={styles.secondaryButtonText}>Sair</Text>
-      </TouchableOpacity>
+        {/* Conteúdo por aba */}
+        {activeTab === 'home' && (
+          <>
+            <View style={styles.homeHeaderRow}>
+              <Text style={styles.sectionTitle}>Serviços</Text>
+              <TouchableOpacity onPress={loadServices}>
+                <Text style={styles.sectionAction}>Atualizar</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingServices ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator />
+                <Text style={styles.loadingText}>
+                  Carregando serviços...
+                </Text>
+              </View>
+            ) : services.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Nenhum serviço cadastrado ainda.
+              </Text>
+            ) : (
+              <FlatList
+                data={services}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                contentContainerStyle={{
+                  paddingTop: 4,
+                  paddingBottom: 12,
+                }}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                renderItem={renderService}
+              />
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                !selectedService && { opacity: 0.6 },
+              ]}
+              onPress={handlePressSchedule}
+              disabled={!selectedService}
+            >
+              <Text style={styles.primaryButtonText}>Agendar horário</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {activeTab === 'appointments' && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Meus agendamentos</Text>
+              <TouchableOpacity onPress={loadAppointments}>
+                <Text style={styles.sectionAction}>Atualizar</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingAppointments ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator />
+                <Text style={styles.loadingText}>
+                  Carregando seus horários...
+                </Text>
+              </View>
+            ) : appointments.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Você ainda não tem agendamentos. Que tal marcar um agora? ✂️
+              </Text>
+            ) : (
+              <FlatList
+                data={appointments}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                contentContainerStyle={{
+                  paddingTop: 8,
+                  paddingBottom: 16,
+                }}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                renderItem={renderAppointment}
+              />
+            )}
+          </>
+        )}
+
+        {activeTab === 'profile' && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.sectionTitle}>Perfil</Text>
+
+            <View style={styles.profileCard}>
+              <Text style={styles.profileLabel}>Nome</Text>
+              <Text style={styles.profileValue}>{user?.name}</Text>
+
+              <Text style={styles.profileLabel}>E-mail</Text>
+              <Text style={styles.profileValue}>{user?.email}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={onLogout}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.logoutText}>Sair da conta</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Bottom Tabs */}
+      <View style={styles.tabBar}>
+        <TabButton label="Início" tab="home" />
+        <TabButton label="Agendamentos" tab="appointments" />
+        <TabButton label="Perfil" tab="profile" />
+      </View>
     </View>
   );
 }
@@ -147,65 +332,55 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 24,
     paddingTop: 60,
-    backgroundColor: '#0f172a', // fundo escuro
+    backgroundColor: '#020617',
   },
   greeting: {
-    fontSize: 20,
-    color: '#9ca3af',
-  },
-  name: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#f9fafb',
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-    marginBottom: 20,
-  },
-  cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#f9fafb',
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
     color: '#9ca3af',
+    marginBottom: 12,
+  },
+
+  // Banner
+  bannerWrapper: {
+    width: '100%',
+    height: 180,
+    borderRadius: 18,
+    overflow: 'hidden',
     marginBottom: 18,
+    backgroundColor: '#1f2937',
   },
-  primaryButton: {
-    backgroundColor: '#22c55e',
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: 'center',
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
-  primaryButtonText: {
-    color: '#022c22',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  secondaryButton: {
-    marginTop: 16,
-    alignSelf: 'flex-start',
+  bannerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#4b5563',
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  secondaryButtonText: {
+  shopName: {
+    color: '#f9fafb',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  shopAddress: {
     color: '#e5e7eb',
-    fontSize: 14,
+    fontSize: 12,
+  },
+
+  // Seções
+  homeHeaderRow: {
+    marginTop: 4,
+    marginBottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionHeader: {
     marginTop: 8,
@@ -223,6 +398,22 @@ const styles = StyleSheet.create({
     color: '#60a5fa',
     fontSize: 13,
   },
+
+  // Botão principal
+  primaryButton: {
+    backgroundColor: '#22c55e',
+    paddingVertical: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  primaryButtonText: {
+    color: '#022c22',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  // Loading / vazio
   loadingBox: {
     marginTop: 12,
     paddingVertical: 12,
@@ -239,6 +430,8 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 14,
   },
+
+  // Cards de agendamento
   appointmentCard: {
     backgroundColor: '#020617',
     borderRadius: 12,
@@ -267,5 +460,98 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+
+  // Cards de serviço
+  serviceCard: {
+    backgroundColor: '#020617',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  serviceCardSelected: {
+    borderColor: '#22c55e',
+  },
+  serviceName: {
+    color: '#f9fafb',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  serviceNameSelected: {
+    color: '#bbf7d0',
+  },
+  serviceMeta: {
+    color: '#9ca3af',
+    fontSize: 12,
+  },
+
+  // Perfil
+  profileCard: {
+    marginTop: 8,
+    backgroundColor: '#020617',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  profileLabel: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  profileValue: {
+    color: '#f9fafb',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  logoutButton: {
+    marginTop: 16,
+    backgroundColor: '#b91c1c',
+    paddingVertical: 12,
+    borderRadius: 999,
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#fef2f2',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+
+  // Bottom tab bar
+  tabBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 24,
+    paddingVertical: 20, // mais alto
+    backgroundColor: '#020617',
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tabButton: {
+    flex: 1,
+    marginHorizontal: 4,
+    paddingVertical: 20, // aumentado
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonActive: {
+    backgroundColor: '#111827',
+  },
+  tabButtonText: {
+    color: '#9ca3af',
+    fontSize: 13,
+  },
+  tabButtonTextActive: {
+    color: '#f9fafb',
+    fontWeight: '600',
   },
 });
