@@ -1,4 +1,4 @@
-// src/screens/SignIn.tsx
+// src/screens/LoginScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -8,17 +8,18 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { useAuth } from '../hooks/useAuth';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../routes/auth.routes';
+import { api } from '../services/api';
+import type { User } from '../../App';
 
-type SignInNavProp = NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
+type LoginScreenProps = {
+  onLoginSuccess: (user: User) => void;
+  onGoToRegister: () => void;
+};
 
-export function SignIn() {
-  const { signIn } = useAuth();
-  const navigation = useNavigation<SignInNavProp>();
-
+export function LoginScreen({
+  onLoginSuccess,
+  onGoToRegister,
+}: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -31,9 +32,17 @@ export function SignIn() {
 
     try {
       setSubmitting(true);
-      await signIn({ email, password });
+
+      const response = await api.post('/api/auth/login', {
+        email,
+        password,
+      });
+
+      const { user } = response.data;
+
+      onLoginSuccess(user);
     } catch (error: any) {
-      console.log(error?.response?.data || error);
+      console.log('Erro ao entrar:', error?.response?.data || error);
       Alert.alert(
         'Erro ao entrar',
         error?.response?.data?.message || 'Verifique suas credenciais.'
@@ -41,10 +50,6 @@ export function SignIn() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function handleGoToRegister() {
-    navigation.navigate('Register');
   }
 
   return (
@@ -80,7 +85,7 @@ export function SignIn() {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.linkButton} onPress={handleGoToRegister}>
+      <TouchableOpacity style={styles.linkButton} onPress={onGoToRegister}>
         <Text style={styles.linkText}>Não tem conta? Registrar</Text>
       </TouchableOpacity>
     </View>

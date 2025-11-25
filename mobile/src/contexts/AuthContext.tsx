@@ -7,7 +7,6 @@ type User = {
   id: string;
   name: string;
   email: string;
-  avatarUrl?: string | null;
 };
 
 type SignInCredentials = {
@@ -18,9 +17,9 @@ type SignInCredentials = {
 type AuthContextData = {
   user: User | null;
   loading: boolean;
+  isAuthenticated: boolean;
   signIn: (credentials: SignInCredentials) => Promise<void>;
   signOut: () => Promise<void>;
-  isAuthenticated: boolean;
 };
 
 export const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -34,32 +33,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadUserFromStorage() {
+    async function loadStorageData() {
       try {
-        const [token, userJson] = await Promise.all([
-          AsyncStorage.getItem('@barber:token'),
-          AsyncStorage.getItem('@barber:user'),
+        const [[, token], [, userJson]] = await AsyncStorage.multiGet([
+          '@barber:token',
+          '@barber:user',
         ]);
 
         if (token && userJson) {
           setApiToken(token);
           setUser(JSON.parse(userJson));
         }
+      } catch (error) {
+        console.log('Erro carregando auth do storage', error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadUserFromStorage();
+    loadStorageData();
   }, []);
 
   async function signIn({ email, password }: SignInCredentials) {
-    const response = await api.post('/sessions', { email, password });
+    const response = await api.post('/api/auth/login', { email, password });
 
     const { token, user } = response.data;
 
-    await AsyncStorage.setItem('@barber:token', token);
-    await AsyncStorage.setItem('@barber:user', JSON.stringify(user));
+    await AsyncStorage.multiSet([
+      ['@barber:token', token],
+      ['@barber:user', JSON.stringify(user)],
+    ]);
 
     setApiToken(token);
     setUser(user);
@@ -76,9 +79,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       value={{
         user,
         loading,
+        isAuthenticated: !!user,
         signIn,
         signOut,
-        isAuthenticated: !!user,
       }}
     >
       {children}

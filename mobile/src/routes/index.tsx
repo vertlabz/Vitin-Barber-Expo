@@ -1,10 +1,10 @@
 // src/routes/index.tsx
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { AppRoutes } from './app.routes';
 import { AuthRoutes } from './auth.routes';
-import { ActivityIndicator, View } from 'react-native';
 
 export function Routes() {
   const { isAuthenticated, loading } = useAuth();

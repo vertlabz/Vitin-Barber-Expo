@@ -2,8 +2,14 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SignIn } from '../screens/SignIn';
+import { Register } from '../screens/RegisterScreen';
 
-const Stack = createNativeStackNavigator();
+export type AuthStackParamList = {
+  SignIn: undefined;
+  Register: undefined;
+};
+
+const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export function AuthRoutes() {
   return (
@@ -12,6 +18,11 @@ export function AuthRoutes() {
         name="SignIn"
         component={SignIn}
         options={{ title: 'Entrar' }}
+      />
+      <Stack.Screen
+        name="Register"
+        component={Register}
+        options={{ title: 'Criar conta' }}
       />
     </Stack.Navigator>
   );

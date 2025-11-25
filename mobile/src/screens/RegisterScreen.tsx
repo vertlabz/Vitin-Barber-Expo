@@ -1,4 +1,4 @@
-// src/screens/SignIn.tsx
+// src/screens/RegisterScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -8,48 +8,57 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { useAuth } from '../hooks/useAuth';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../routes/auth.routes';
+import { api } from '../services/api';
 
-type SignInNavProp = NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
+type RegisterScreenProps = {
+  onGoBack: () => void;
+};
 
-export function SignIn() {
-  const { signIn } = useAuth();
-  const navigation = useNavigation<SignInNavProp>();
-
+export function RegisterScreen({ onGoBack }: RegisterScreenProps) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSignIn() {
-    if (!email || !password) {
-      Alert.alert('Erro', 'Preencha e-mail e senha.');
+  async function handleRegister() {
+    if (!name || !email || !password) {
+      Alert.alert('Erro', 'Preencha todos os campos.');
       return;
     }
 
     try {
       setSubmitting(true);
-      await signIn({ email, password });
+
+      await api.post('/api/auth/register', {
+        name,
+        email,
+        password,
+      });
+
+      Alert.alert('Sucesso', 'Conta criada com sucesso!');
+      onGoBack();
     } catch (error: any) {
-      console.log(error?.response?.data || error);
+      console.log('Erro ao registrar:', error?.response?.data || error);
       Alert.alert(
-        'Erro ao entrar',
-        error?.response?.data?.message || 'Verifique suas credenciais.'
+        'Erro ao registrar',
+        error?.response?.data?.message || 'Não foi possível criar a conta.'
       );
     } finally {
       setSubmitting(false);
     }
   }
 
-  function handleGoToRegister() {
-    navigation.navigate('Register');
-  }
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Entrar</Text>
+      <Text style={styles.title}>Criar conta</Text>
+
+      <Text style={styles.label}>Nome</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Seu nome"
+        value={name}
+        onChangeText={setName}
+      />
 
       <Text style={styles.label}>E-mail</Text>
       <TextInput
@@ -72,16 +81,16 @@ export function SignIn() {
 
       <TouchableOpacity
         style={[styles.button, submitting && styles.buttonDisabled]}
-        onPress={handleSignIn}
+        onPress={handleRegister}
         disabled={submitting}
       >
         <Text style={styles.buttonText}>
-          {submitting ? 'Entrando...' : 'Entrar'}
+          {submitting ? 'Cadastrando...' : 'Cadastrar'}
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.linkButton} onPress={handleGoToRegister}>
-        <Text style={styles.linkText}>Não tem conta? Registrar</Text>
+      <TouchableOpacity style={styles.linkButton} onPress={onGoBack}>
+        <Text style={styles.linkText}>Voltar para login</Text>
       </TouchableOpacity>
     </View>
   );
