@@ -1,17 +1,13 @@
-// src/services/api.ts
-import axios from 'axios';
+import axios from "axios";
 
-const baseURL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+// Se você ainda não configurou env, deixe um fallback.
+// Depois a gente troca para EXPO_PUBLIC_API_BASE_URL certinho.
+const baseURL = "https://beck-pied.vercel.app";
 
 export const api = axios.create({
-<<<<<<< Updated upstream
   baseURL,
-=======
-  // MESMA base que você já está usando e funciona
-  baseURL: 'https://beck-pied.vercel.app/',
->>>>>>> Stashed changes
 });
+
 
 export function setApiToken(token: string | null) {
   if (token) {
