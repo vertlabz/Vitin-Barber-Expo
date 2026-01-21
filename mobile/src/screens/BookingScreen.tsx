@@ -12,6 +12,9 @@ import {
 import { Calendar, DateObject } from 'react-native-calendars';
 import { api } from '../services/api';
 import type { AppService } from '../../App';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { Container } from '../components/layout/Container';
+import { ResponsiveStack } from '../components/layout/ResponsiveStack';
 
 type BookingScreenProps = {
   onBack: () => void;
@@ -41,6 +44,7 @@ const monthNames = [
 ];
 
 export function BookingScreen({ onBack, service }: BookingScreenProps) {
+  const { isDesktop } = useBreakpoint();
   const [date, setDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState(
     new Date().toISOString().split('T')[0],
@@ -197,164 +201,189 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
     });
   }
 
+  const slotColumns = isDesktop ? 4 : 3;
+
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Voltar</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Novo agendamento</Text>
-        <View style={{ width: 60 }} />
-      </View>
+      <Container style={styles.headerContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack}>
+            <Text style={styles.backText}>← Voltar</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Novo agendamento</Text>
+          <View style={{ width: 60 }} />
+        </View>
+      </Container>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isDesktop && styles.scrollContentDesktop,
+        ]}
       >
-        {/* Serviço selecionado */}
-        <View style={styles.serviceInfoCard}>
-          <Text style={styles.serviceInfoLabel}>Serviço selecionado</Text>
-          <Text style={styles.serviceInfoName}>{service.name}</Text>
-          <Text style={styles.serviceInfoMeta}>
-            {service.duration} min
-            {typeof service.price === 'number'
-              ? ` • R$ ${service.price}`
-              : ''}
-          </Text>
-        </View>
+        <Container>
+          {/* Serviço selecionado */}
+          <View style={styles.serviceInfoCard}>
+            <Text style={styles.serviceInfoLabel}>Serviço selecionado</Text>
+            <Text style={styles.serviceInfoName}>{service.name}</Text>
+            <Text style={styles.serviceInfoMeta}>
+              {service.duration} min
+              {typeof service.price === 'number'
+                ? ` • R$ ${service.price}`
+                : ''}
+            </Text>
+          </View>
 
-        {/* Calendário customizado */}
-        <Text style={styles.sectionTitle}>Escolha a data</Text>
+          <ResponsiveStack style={styles.bookingColumns} spacing={32}>
+            <View style={styles.calendarColumn}>
+              {/* Calendário customizado */}
+              <Text style={styles.sectionTitle}>Escolha a data</Text>
 
-        <View style={styles.calendarWrapper}>
-          <Calendar
-            firstDay={1}
-            hideExtraDays
-            enableSwipeMonths
-            onDayPress={(day: DateObject) =>
-              handleSelectDay(day.dateString)
-            }
-            dayComponent={({ date: d }) => {
-              if (!d) return null;
-              const enabled = isDayEnabled(d.dateString);
-              const isSelected = d.dateString === selectedDateStr;
+              <View style={styles.calendarWrapper}>
+                <Calendar
+                  firstDay={1}
+                  hideExtraDays
+                  enableSwipeMonths
+                  onDayPress={(day: DateObject) =>
+                    handleSelectDay(day.dateString)
+                  }
+                  dayComponent={({ date: d }) => {
+                    if (!d) return null;
+                    const enabled = isDayEnabled(d.dateString);
+                    const isSelected = d.dateString === selectedDateStr;
 
-              const bgColor = isSelected
-                ? '#22c55e'
-                : enabled
-                ? '#0f172a'
-                : 'transparent';
+                    const bgColor = isSelected
+                      ? '#22c55e'
+                      : enabled
+                      ? '#0f172a'
+                      : 'transparent';
 
-              const borderColor = enabled ? '#1f2937' : 'transparent';
+                    const borderColor = enabled ? '#1f2937' : 'transparent';
 
-              const textColor = !enabled
-                ? '#4b5563'
-                : isSelected
-                ? '#022c22'
-                : '#e5e7eb';
+                    const textColor = !enabled
+                      ? '#4b5563'
+                      : isSelected
+                      ? '#022c22'
+                      : '#e5e7eb';
 
-              const inner = (
-                <View
-                  style={[
-                    styles.dayContainer,
-                    { backgroundColor: bgColor, borderColor },
-                  ]}
-                >
-                  <Text style={[styles.dayText, { color: textColor }]}>
-                    {d.day}
-                  </Text>
-                </View>
-              );
+                    const inner = (
+                      <View
+                        style={[
+                          styles.dayContainer,
+                          { backgroundColor: bgColor, borderColor },
+                        ]}
+                      >
+                        <Text style={[styles.dayText, { color: textColor }]}>
+                          {d.day}
+                        </Text>
+                      </View>
+                    );
 
-              if (!enabled) {
-                return inner;
-              }
+                    if (!enabled) {
+                      return inner;
+                    }
 
-              return (
-                <TouchableOpacity
-                  onPress={() => handleSelectDay(d.dateString)}
-                  activeOpacity={0.8}
-                >
-                  {inner}
-                </TouchableOpacity>
-              );
-            }}
-            renderHeader={(d) => {
-              const month = monthNames[d.getMonth()];
-              const year = d.getFullYear();
-              return (
-                <Text style={styles.calendarHeader}>
-                  {month} {year}
+                    return (
+                      <TouchableOpacity
+                        onPress={() => handleSelectDay(d.dateString)}
+                        activeOpacity={0.8}
+                      >
+                        {inner}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  renderHeader={(d) => {
+                    const month = monthNames[d.getMonth()];
+                    const year = d.getFullYear();
+                    return (
+                      <Text style={styles.calendarHeader}>
+                        {month} {year}
+                      </Text>
+                    );
+                  }}
+                  theme={{
+                    backgroundColor: '#020617',
+                    calendarBackground: '#020617',
+                    arrowColor: '#e5e7eb',
+                    monthTextColor: '#e5e7eb',
+                    textSectionTitleColor: '#6b7280',
+                  }}
+                />
+              </View>
+
+              {/* Botão carregar horários */}
+              <TouchableOpacity style={styles.loadButton} onPress={loadSlots}>
+                <Text style={styles.loadButtonText}>
+                  {loadingSlots
+                    ? 'Carregando...'
+                    : 'Ver horários disponíveis'}
                 </Text>
-              );
-            }}
-            theme={{
-              backgroundColor: '#020617',
-              calendarBackground: '#020617',
-              arrowColor: '#e5e7eb',
-              monthTextColor: '#e5e7eb',
-              textSectionTitleColor: '#6b7280',
-            }}
-          />
-        </View>
+              </TouchableOpacity>
+            </View>
 
-        {/* Botão carregar horários */}
-        <TouchableOpacity style={styles.loadButton} onPress={loadSlots}>
-          <Text style={styles.loadButtonText}>
-            {loadingSlots ? 'Carregando...' : 'Ver horários disponíveis'}
-          </Text>
-        </TouchableOpacity>
+            <View style={styles.slotsColumn}>
+              {/* Slots */}
+              {slots.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Horários disponíveis</Text>
+                  <FlatList
+                    data={slots}
+                    keyExtractor={(item) => item}
+                    numColumns={slotColumns}
+                    columnWrapperStyle={
+                      slotColumns > 1
+                        ? styles.slotRow
+                        : undefined
+                    }
+                    scrollEnabled={false}
+                    style={{ marginTop: 12 }}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[
+                          styles.slot,
+                          selectedSlot === item && styles.slotSelected,
+                        ]}
+                        onPress={() => setSelectedSlot(item)}
+                      >
+                        <Text
+                          style={[
+                            styles.slotText,
+                            selectedSlot === item &&
+                              styles.slotTextSelected,
+                          ]}
+                        >
+                          {formatHour(item)}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </>
+              )}
 
-        {/* Slots */}
-        {slots.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Horários disponíveis</Text>
-            <FlatList
-              data={slots}
-              keyExtractor={(item) => item}
-              numColumns={3}
-              columnWrapperStyle={{ justifyContent: 'space-between' }}
-              scrollEnabled={false}
-              style={{ marginTop: 12 }}
-              renderItem={({ item }) => (
+              {/* Mensagem sem horário */}
+              {hasTriedSlots && !loadingSlots && slots.length === 0 && (
+                <Text style={styles.emptyText}>
+                  Nenhum horário disponível para essa data. Tente outro dia.
+                  😢
+                </Text>
+              )}
+
+              {/* Confirmar */}
+              {selectedSlot && (
                 <TouchableOpacity
-                  style={[
-                    styles.slot,
-                    selectedSlot === item && styles.slotSelected,
-                  ]}
-                  onPress={() => setSelectedSlot(item)}
+                  style={styles.confirmButton}
+                  onPress={handleSchedule}
                 >
-                  <Text
-                    style={[
-                      styles.slotText,
-                      selectedSlot === item && styles.slotTextSelected,
-                    ]}
-                  >
-                    {formatHour(item)}
+                  <Text style={styles.confirmText}>
+                    Confirmar agendamento ✅
                   </Text>
                 </TouchableOpacity>
               )}
-            />
-          </>
-        )}
-
-        {/* Mensagem sem horário */}
-        {hasTriedSlots && !loadingSlots && slots.length === 0 && (
-          <Text style={styles.emptyText}>
-            Nenhum horário disponível para essa data. Tente outro dia. 😢
-          </Text>
-        )}
-
-        {/* Confirmar */}
-        {selectedSlot && (
-          <TouchableOpacity
-            style={styles.confirmButton}
-            onPress={handleSchedule}
-          >
-            <Text style={styles.confirmText}>Confirmar agendamento ✅</Text>
-          </TouchableOpacity>
-        )}
+            </View>
+          </ResponsiveStack>
+        </Container>
       </ScrollView>
     </View>
   );
@@ -364,9 +393,16 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    paddingTop: 40,
     backgroundColor: '#020617',
+  },
+  headerContainer: {
+    paddingTop: 40,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  scrollContentDesktop: {
+    paddingBottom: 32,
   },
   header: {
     flexDirection: 'row',
@@ -404,6 +440,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#1f2937',
+  },
+  bookingColumns: {
+    marginTop: 16,
+  },
+  calendarColumn: {
+    flex: 1,
+    width: '100%',
+  },
+  slotsColumn: {
+    flex: 1,
+    width: '100%',
   },
   serviceInfoLabel: {
     color: '#9ca3af',
@@ -483,6 +530,9 @@ const styles = StyleSheet.create({
   slotTextSelected: {
     color: '#022c22',
     fontWeight: '600',
+  },
+  slotRow: {
+    justifyContent: 'space-between',
   },
   confirmButton: {
     marginTop: 18,

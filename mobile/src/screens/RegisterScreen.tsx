@@ -9,12 +9,15 @@ import {
   StyleSheet,
 } from 'react-native';
 import { api } from '../services/api';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { Container } from '../components/layout/Container';
 
 type RegisterScreenProps = {
   onGoBack: () => void;
 };
 
 export function RegisterScreen({ onGoBack }: RegisterScreenProps) {
+  const { isDesktop } = useBreakpoint();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,63 +53,65 @@ export function RegisterScreen({ onGoBack }: RegisterScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>Vitinho Barber</Text>
+    <View style={[styles.container, isDesktop && styles.containerDesktop]}>
+      <Container maxWidth={420} style={styles.content}>
+        <Text style={styles.logo}>Vitinho Barber</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Criar conta</Text>
-        <Text style={styles.subtitle}>
-          Cadastre-se para começar a agendar seus horários.
-        </Text>
-
-        <Text style={styles.label}>Nome</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Seu nome"
-          placeholderTextColor="#6b7280"
-          value={name}
-          onChangeText={setName}
-        />
-
-        <Text style={styles.label}>E-mail</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="seu@email.com"
-          placeholderTextColor="#6b7280"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <Text style={styles.label}>Senha</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="******"
-          placeholderTextColor="#6b7280"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, submitting && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={submitting}
-        >
-          <Text style={styles.buttonText}>
-            {submitting ? 'Cadastrando...' : 'Cadastrar'}
+        <View style={styles.card}>
+          <Text style={styles.title}>Criar conta</Text>
+          <Text style={styles.subtitle}>
+            Cadastre-se para começar a agendar seus horários.
           </Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={onGoBack}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.linkText}>← Voltar para login</Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.label}>Nome</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Seu nome"
+            placeholderTextColor="#6b7280"
+            value={name}
+            onChangeText={setName}
+          />
+
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="seu@email.com"
+            placeholderTextColor="#6b7280"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <Text style={styles.label}>Senha</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="******"
+            placeholderTextColor="#6b7280"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={[styles.button, submitting && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={submitting}
+          >
+            <Text style={styles.buttonText}>
+              {submitting ? 'Cadastrando...' : 'Cadastrar'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={onGoBack}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.linkText}>← Voltar para login</Text>
+          </TouchableOpacity>
+        </View>
+      </Container>
     </View>
   );
 }
@@ -118,6 +123,13 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 80,
     backgroundColor: '#020617',
+  },
+  containerDesktop: {
+    justifyContent: 'center',
+    paddingTop: 0,
+  },
+  content: {
+    paddingHorizontal: 0,
   },
   logo: {
     fontSize: 22,

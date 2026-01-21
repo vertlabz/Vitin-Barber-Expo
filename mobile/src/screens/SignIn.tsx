@@ -12,12 +12,15 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../routes/auth.routes';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { Container } from '../components/layout/Container';
 
 type SignInNavProp = NativeStackNavigationProp<AuthStackParamList, 'SignIn'>;
 
 export function SignIn() {
   const { signIn } = useAuth();
   const navigation = useNavigation<SignInNavProp>();
+  const { isDesktop } = useBreakpoint();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,41 +51,46 @@ export function SignIn() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Entrar</Text>
+    <View style={[styles.container, isDesktop && styles.containerDesktop]}>
+      <Container maxWidth={420} style={styles.content}>
+        <Text style={styles.title}>Entrar</Text>
 
-      <Text style={styles.label}>E-mail</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="seu@email.com"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+        <Text style={styles.label}>E-mail</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="seu@email.com"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
 
-      <Text style={styles.label}>Senha</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="******"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+        <Text style={styles.label}>Senha</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="******"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
 
-      <TouchableOpacity
-        style={[styles.button, submitting && styles.buttonDisabled]}
-        onPress={handleSignIn}
-        disabled={submitting}
-      >
-        <Text style={styles.buttonText}>
-          {submitting ? 'Entrando...' : 'Entrar'}
-        </Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, submitting && styles.buttonDisabled]}
+          onPress={handleSignIn}
+          disabled={submitting}
+        >
+          <Text style={styles.buttonText}>
+            {submitting ? 'Entrando...' : 'Entrar'}
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.linkButton} onPress={handleGoToRegister}>
-        <Text style={styles.linkText}>Não tem conta? Registrar</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={handleGoToRegister}
+        >
+          <Text style={styles.linkText}>Não tem conta? Registrar</Text>
+        </TouchableOpacity>
+      </Container>
     </View>
   );
 }
@@ -93,6 +101,12 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  containerDesktop: {
+    paddingTop: 0,
+  },
+  content: {
+    paddingHorizontal: 0,
   },
   title: {
     fontSize: 26,
