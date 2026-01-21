@@ -1,9 +1,11 @@
 // src/services/api.ts
 import axios from 'axios';
 
+const baseURL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+
 export const api = axios.create({
-  // MESMA base que você já está usando e funciona
-  baseURL: 'http://192.168.1.4:3000',
+  baseURL,
 });
 
 export function setApiToken(token: string | null) {

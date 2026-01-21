@@ -9,6 +9,8 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { Container } from '../components/layout/Container';
 
 type LoginScreenProps = {
   onGoToRegister: () => void;
@@ -16,6 +18,7 @@ type LoginScreenProps = {
 
 export function LoginScreen({ onGoToRegister }: LoginScreenProps) {
   const { signIn } = useAuth();
+  const { isDesktop } = useBreakpoint();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,56 +46,59 @@ export function LoginScreen({ onGoToRegister }: LoginScreenProps) {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>Vitinho Barber</Text>
+    <View style={[styles.container, isDesktop && styles.containerDesktop]}>
+      <Container maxWidth={420} style={styles.content}>
+        <Text style={styles.logo}>Vitinho Barber</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Entrar</Text>
-        <Text style={styles.subtitle}>
-          Acesse sua conta para agendar seus horários.
-        </Text>
-
-        <Text style={styles.label}>E-mail</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="seu@email.com"
-          placeholderTextColor="#6b7280"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <Text style={styles.label}>Senha</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="******"
-          placeholderTextColor="#6b7280"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, submitting && styles.buttonDisabled]}
-          onPress={handleSignIn}
-          disabled={submitting}
-        >
-          <Text style={styles.buttonText}>
-            {submitting ? 'Entrando...' : 'Entrar'}
+        <View style={styles.card}>
+          <Text style={styles.title}>Entrar</Text>
+          <Text style={styles.subtitle}>
+            Acesse sua conta para agendar seus horários.
           </Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={onGoToRegister}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.linkText}>
-            Não tem conta? <Text style={styles.linkTextHighlight}>Registrar</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="seu@email.com"
+            placeholderTextColor="#6b7280"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <Text style={styles.label}>Senha</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="******"
+            placeholderTextColor="#6b7280"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={[styles.button, submitting && styles.buttonDisabled]}
+            onPress={handleSignIn}
+            disabled={submitting}
+          >
+            <Text style={styles.buttonText}>
+              {submitting ? 'Entrando...' : 'Entrar'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={onGoToRegister}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.linkText}>
+              Não tem conta?{' '}
+              <Text style={styles.linkTextHighlight}>Registrar</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Container>
     </View>
   );
 }
@@ -104,6 +110,13 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 80,
     backgroundColor: '#020617',
+  },
+  containerDesktop: {
+    justifyContent: 'center',
+    paddingTop: 0,
+  },
+  content: {
+    paddingHorizontal: 0,
   },
   logo: {
     fontSize: 22,
