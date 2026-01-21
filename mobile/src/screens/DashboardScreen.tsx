@@ -42,7 +42,7 @@ type Service = AppService;
 
 type TabKey = 'home' | 'appointments' | 'profile';
 
-const DEFAULT_PROVIDER_ID = '2b4bb72b-c961-4f05-beb8-013dd39a5a07';
+const DEFAULT_PROVIDER_ID = '773ab6bb-d178-4ad4-a450-1708f6c9a399';
 
 export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) {
   const { user } = useAuth();
