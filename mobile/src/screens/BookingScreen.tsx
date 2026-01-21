@@ -25,7 +25,7 @@ type ProviderAvailability = {
   weekday: number; // 0 = domingo ... 6 = sábado
 };
 
-const DEFAULT_PROVIDER_ID = '2b4bb72b-c961-4f05-beb8-013dd39a5a07';
+const DEFAULT_PROVIDER_ID = '773ab6bb-d178-4ad4-a450-1708f6c9a399';
 const MAX_BOOKING_DAYS = 7;
 
 const monthNames = [
