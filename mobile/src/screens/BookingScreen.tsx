@@ -292,7 +292,7 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
 
       <ScrollView
         style={{ flex: 1 }}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         contentContainerStyle={[
           styles.scrollContent,
           isDesktop && styles.scrollContentDesktop,
@@ -585,10 +585,12 @@ const styles = StyleSheet.create({
   // Calendário
   calendarWrapper: {
     borderRadius: 16,
-    overflow: 'hidden',
     backgroundColor: '#020617',
     borderWidth: 1,
     borderColor: '#1f2937',
+    ...(Platform.OS === 'web' ? {} : { overflow: 'hidden' }),
+    position: 'relative',
+    zIndex: 10,
   },
   calendarHeader: {
     textAlign: 'center',
@@ -616,6 +618,7 @@ const styles = StyleSheet.create({
   dayPressable: {
     alignSelf: 'center',
     zIndex: 3,
+    position: 'relative',
   },
 
   loadButton: {
@@ -624,6 +627,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
+    position: 'relative',
+    zIndex: 20,
   },
   loadButtonText: {
     color: '#f9fafb',
