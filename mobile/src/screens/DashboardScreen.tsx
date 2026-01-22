@@ -16,6 +16,7 @@ import type { AppService } from '../../App';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { Container } from '../components/layout/Container';
 import { ResponsiveStack } from '../components/layout/ResponsiveStack';
+import { getTouchDebugProps } from '../utils/touchDebug';
 
 type DashboardScreenProps = {
   onLogout: () => void;
@@ -192,6 +193,7 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
   }
 
   const showSidePanel = isDesktop && activeTab !== 'profile';
+  const bannerOverlayPointerEvents = __DEV__ ? 'auto' : 'none';
 
   return (
     <View style={styles.container}>
@@ -223,7 +225,11 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
                   }}
                   style={styles.bannerImage}
                 />
-                <View style={styles.bannerOverlay}>
+                <View
+                  style={styles.bannerOverlay}
+                  pointerEvents={bannerOverlayPointerEvents}
+                  {...getTouchDebugProps('dashboard-banner-overlay')}
+                >
                   <Text style={styles.shopName}>VITINHO BARBER</Text>
                   <Text style={styles.shopAddress}>Centro 151, 29370-000</Text>
                   <Text style={styles.shopAddress}>
@@ -372,10 +378,18 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
       </ScrollView>
 
       {/* Bottom Tabs */}
-      <View style={[styles.tabBar, isDesktop && styles.tabBarDesktop]}>
-        <TabButton label="Início" tab="home" />
-        <TabButton label="Agendamentos" tab="appointments" />
-        <TabButton label="Perfil" tab="profile" />
+      <View
+        style={[styles.tabBarWrap, isDesktop && styles.tabBarWrapDesktop]}
+        pointerEvents="box-none"
+      >
+        <View
+          style={[styles.tabBar, isDesktop && styles.tabBarDesktop]}
+          {...getTouchDebugProps('dashboard-tab-bar')}
+        >
+          <TabButton label="Início" tab="home" />
+          <TabButton label="Agendamentos" tab="appointments" />
+          <TabButton label="Perfil" tab="profile" />
+        </View>
       </View>
     </View>
   );
@@ -596,11 +610,22 @@ const styles = StyleSheet.create({
   },
 
   // Bottom tab bar
-  tabBar: {
+  tabBarWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  tabBarWrapDesktop: {
+    position: 'relative',
+    bottom: undefined,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 24,
+    maxWidth: 520,
+    width: '100%',
+  },
+  tabBar: {
     paddingHorizontal: 24,
     paddingVertical: 20, // mais alto
     backgroundColor: '#020617',
@@ -608,20 +633,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#1f2937',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    width: '100%',
   },
   tabBarDesktop: {
-    position: 'relative',
-    bottom: undefined,
     borderTopWidth: 0,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 24,
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 999,
     backgroundColor: '#0b1220',
-    maxWidth: 520,
-    width: '100%',
   },
   tabButton: {
     flex: 1,
