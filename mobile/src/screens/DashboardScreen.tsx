@@ -1,5 +1,5 @@
 // src/screens/DashboardScreen.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import type { AppService } from '../../App';
@@ -27,6 +28,8 @@ type Appointment = {
   id: string;
   date: string;
   notes?: string | null;
+  status?: string | null;
+  endTime?: string | null;
   service?: {
     id: string;
     name: string;
@@ -62,6 +65,22 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
     loadAppointments();
     loadServices();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAppointments();
+    }, []),
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'appointments') return;
+
+    const intervalId = setInterval(() => {
+      loadAppointments();
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [activeTab]);
 
   async function loadAppointments() {
     try {
@@ -117,16 +136,79 @@ export function DashboardScreen({ onLogout, onSchedule }: DashboardScreenProps) 
     })}`;
   }
 
+  function getAppointmentEndTime(item: Appointment) {
+    if (item.endTime) {
+      return new Date(item.endTime);
+    }
+
+    if (item.service?.duration) {
+      const startTime = new Date(item.date);
+      return new Date(startTime.getTime() + item.service.duration * 60000);
+    }
+
+    return null;
+  }
+
+  function getStatusLabel(status?: string | null, item?: Appointment) {
+    const normalized = status?.toUpperCase();
+
+    if (normalized) {
+      if (normalized === 'COMPLETED') return 'Concluído';
+      if (normalized === 'SCHEDULED') return 'Não iniciado';
+      if (normalized === 'CONFIRMED') return 'Confirmado';
+      if (normalized === 'CANCELED') return 'Cancelado';
+    }
+
+    if (item) {
+      const endTime = getAppointmentEndTime(item);
+      if (endTime && Date.now() >= endTime.getTime()) {
+        return 'Concluído';
+      }
+    }
+
+    return 'Não iniciado';
+  }
+
+  const now = useMemo(() => Date.now(), [appointments]);
+
   function renderAppointment({ item }: { item: Appointment }) {
     const serviceName = item.service?.name ?? 'Serviço';
     const providerName = item.provider?.name ?? 'Barbeiro';
     const when = formatDateTime(item.date);
+    const statusLabel = getStatusLabel(item.status, item);
+    const endTime = getAppointmentEndTime(item);
+    const isCompleted =
+      endTime && now >= endTime.getTime()
+        ? true
+        : item.status?.toUpperCase() === 'COMPLETED';
 
     return (
       <View style={styles.appointmentCard}>
-        <Text style={styles.appointmentService}>{serviceName}</Text>
+        <View style={styles.appointmentHeaderRow}>
+          <Text style={styles.appointmentService}>{serviceName}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              isCompleted && styles.statusBadgeCompleted,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusBadgeText,
+                isCompleted && styles.statusBadgeTextCompleted,
+              ]}
+            >
+              {statusLabel}
+            </Text>
+          </View>
+        </View>
         <Text style={styles.appointmentWhen}>{when}</Text>
         <Text style={styles.appointmentProvider}>com {providerName}</Text>
+        {endTime ? (
+          <Text style={styles.appointmentMeta}>
+            Fim previsto: {formatDateTime(endTime.toISOString())}
+          </Text>
+        ) : null}
         {item.notes ? (
           <Text style={styles.appointmentNotes}>Obs: {item.notes}</Text>
         ) : null}
@@ -528,11 +610,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1f2937',
   },
+  appointmentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   appointmentService: {
     color: '#f9fafb',
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
+  },
+  appointmentMeta: {
+    marginTop: 2,
+    color: '#9ca3af',
+    fontSize: 12,
   },
   appointmentWhen: {
     color: '#e5e7eb',
@@ -548,6 +641,26 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  statusBadgeCompleted: {
+    backgroundColor: '#052e16',
+    borderColor: '#14532d',
+  },
+  statusBadgeText: {
+    color: '#e5e7eb',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  statusBadgeTextCompleted: {
+    color: '#86efac',
   },
 
   // Cards de serviço
