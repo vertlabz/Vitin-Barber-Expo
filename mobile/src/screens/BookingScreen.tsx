@@ -4,10 +4,13 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   FlatList,
   StyleSheet,
   Alert,
   ScrollView,
+  Platform,
+  GestureResponderEvent,
 } from 'react-native';
 import { Calendar, DateObject } from 'react-native-calendars';
 import { api } from '../services/api';
@@ -50,6 +53,7 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
     new Date().toISOString().split('T')[0],
   );
 
+  const touchDebugEnabled = __DEV__ && Platform.OS === 'web';
   const [availableWeekdays, setAvailableWeekdays] = useState<number[]>([]);
 
   const [slots, setSlots] = useState<string[]>([]);
@@ -109,6 +113,76 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
     setSelectedSlot(null);
     setHasTriedSlots(false);
   }
+
+  function handleDebugHitTest(
+    label: string,
+    event: GestureResponderEvent,
+  ) {
+    if (!touchDebugEnabled) return;
+
+    const nativeEvent = event.nativeEvent as any;
+    const touch =
+      nativeEvent?.touches?.[0] ??
+      nativeEvent?.changedTouches?.[0] ??
+      nativeEvent;
+    const pageX = touch?.pageX ?? nativeEvent?.pageX;
+    const pageY = touch?.pageY ?? nativeEvent?.pageY;
+    const clientX = touch?.clientX ?? nativeEvent?.clientX ?? pageX;
+    const clientY = touch?.clientY ?? nativeEvent?.clientY ?? pageY;
+
+    console.log('[touch-debug]', label, { pageX, pageY, clientX, clientY });
+
+    if (
+      typeof document !== 'undefined' &&
+      typeof clientX === 'number' &&
+      typeof clientY === 'number'
+    ) {
+      const el = document.elementFromPoint(clientX, clientY);
+      console.log(
+        '[hit]',
+        el?.tagName,
+        el?.className,
+        el?.id,
+      );
+    }
+  }
+
+  function handleCalendarArrowPress(
+    label: 'calendar-arrow-left' | 'calendar-arrow-right',
+    updateMonth: () => void,
+  ) {
+    if (touchDebugEnabled) {
+      console.log('[touch-debug]', label);
+    }
+    updateMonth();
+  }
+
+  function handleDayPress(dateString: string) {
+    if (touchDebugEnabled) {
+      console.log('[touch-debug] calendar-day-press', dateString);
+    }
+    handleSelectDay(dateString);
+  }
+
+  function handleLoadSlotsPress() {
+    if (touchDebugEnabled) {
+      console.log('[touch-debug] load-slots-press');
+    }
+    loadSlots();
+  }
+
+  const touchDebugHandlers = touchDebugEnabled
+    ? {
+        onTouchStartCapture: (event: GestureResponderEvent) =>
+          handleDebugHitTest('booking-container-touch-start', event),
+        onStartShouldSetResponderCapture: (
+          event: GestureResponderEvent,
+        ) => {
+          handleDebugHitTest('booking-container-should-set', event);
+          return false;
+        },
+      }
+    : {};
 
   async function loadSlots() {
     try {
@@ -204,7 +278,7 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
   const slotColumns = isDesktop ? 4 : 3;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...touchDebugHandlers}>
       {/* Header */}
       <Container style={styles.headerContainer}>
         <View style={styles.header}>
@@ -218,6 +292,7 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
 
       <ScrollView
         style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.scrollContent,
           isDesktop && styles.scrollContentDesktop,
@@ -241,13 +316,31 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
               {/* Calendário customizado */}
               <Text style={styles.sectionTitle}>Escolha a data</Text>
 
-              <View style={styles.calendarWrapper}>
+              <View style={styles.calendarWrapper} pointerEvents="auto">
                 <Calendar
                   firstDay={1}
                   hideExtraDays
-                  enableSwipeMonths
-                  onDayPress={(day: DateObject) =>
-                    handleSelectDay(day.dateString)
+                  enableSwipeMonths={Platform.OS !== 'web'}
+                  onDayPress={(day: DateObject) => {
+                    if (touchDebugEnabled) {
+                      console.log(
+                        '[touch-debug] calendar-onDayPress',
+                        day.dateString,
+                      );
+                    }
+                    handleSelectDay(day.dateString);
+                  }}
+                  onPressArrowLeft={(subtractMonth) =>
+                    handleCalendarArrowPress(
+                      'calendar-arrow-left',
+                      subtractMonth,
+                    )
+                  }
+                  onPressArrowRight={(addMonth) =>
+                    handleCalendarArrowPress(
+                      'calendar-arrow-right',
+                      addMonth,
+                    )
                   }
                   dayComponent={({ date: d }) => {
                     if (!d) return null;
@@ -286,12 +379,19 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
                     }
 
                     return (
-                      <TouchableOpacity
-                        onPress={() => handleSelectDay(d.dateString)}
-                        activeOpacity={0.8}
+                      <Pressable
+                        onPress={() => handleDayPress(d.dateString)}
+                        pointerEvents="auto"
+                        style={styles.dayPressable}
+                        onTouchStart={(event) =>
+                          handleDebugHitTest(
+                            'calendar-day-touch-start',
+                            event,
+                          )
+                        }
                       >
                         {inner}
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   }}
                   renderHeader={(d) => {
@@ -314,7 +414,14 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
               </View>
 
               {/* Botão carregar horários */}
-              <TouchableOpacity style={styles.loadButton} onPress={loadSlots}>
+              <TouchableOpacity
+                style={styles.loadButton}
+                onPress={handleLoadSlotsPress}
+                pointerEvents="auto"
+                onTouchStart={(event) =>
+                  handleDebugHitTest('load-slots-touch-start', event)
+                }
+              >
                 <Text style={styles.loadButtonText}>
                   {loadingSlots
                     ? 'Carregando...'
@@ -345,7 +452,15 @@ export function BookingScreen({ onBack, service }: BookingScreenProps) {
                           styles.slot,
                           selectedSlot === item && styles.slotSelected,
                         ]}
-                        onPress={() => setSelectedSlot(item)}
+                        onPress={() => {
+                          if (touchDebugEnabled) {
+                            console.log(
+                              '[touch-debug] slot-press',
+                              item,
+                            );
+                          }
+                          setSelectedSlot(item);
+                        }}
                       >
                         <Text
                           style={[
@@ -485,15 +600,22 @@ const styles = StyleSheet.create({
   dayContainer: {
     width: 32,
     height: 32,
+    minWidth: 32,
+    minHeight: 32,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     marginVertical: 4,
     alignSelf: 'center',
+    zIndex: 2,
   },
   dayText: {
     fontSize: 14,
+  },
+  dayPressable: {
+    alignSelf: 'center',
+    zIndex: 3,
   },
 
   loadButton: {
